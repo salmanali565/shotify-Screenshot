@@ -204,6 +204,27 @@ class ScreenshotEditor {
         document.getElementById('undoBtn').addEventListener('click', () => this.undo());
         document.getElementById('redoBtn').addEventListener('click', () => this.redo());
         document.getElementById('clearBtn').addEventListener('click', () => this.clearAll());
+        document.getElementById('copyClipboardBtn').addEventListener('click', async () => {
+            const canvas = this.canvas;
+            if (!navigator.clipboard || !window.ClipboardItem) {
+                this.showNotification('Clipboard API not supported in this browser.', 'error');
+                return;
+            }
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    this.showNotification('Failed to copy image.', 'error');
+                    return;
+                }
+                try {
+                    await navigator.clipboard.write([
+                        new window.ClipboardItem({ 'image/png': blob })
+                    ]);
+                    this.showNotification('Screenshot copied to clipboard!', 'success');
+                } catch (err) {
+                    this.showNotification('Failed to copy image: ' + err, 'error');
+                }
+            }, 'image/png');
+        });
         
         // Settings buttons
         document.getElementById('saveSettingsBtn').addEventListener('click', () => this.saveSettings());
@@ -283,6 +304,17 @@ class ScreenshotEditor {
         
         // Also check for screenshot data in URL parameters or localStorage
         this.checkForScreenshotData();
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Delete key to delete selected text element
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (this.selectedElement) {
+                    e.preventDefault();
+                    this.deleteSelectedText();
+                }
+            }
+        });
     }
     
     setupColorStops() {
@@ -713,6 +745,66 @@ class ScreenshotEditor {
                 textDiv.appendChild(handle);
             });
             
+            // Add delete button for selected element
+            if (this.selectedElement && this.selectedElement.id === element.id) {
+                const deleteBtn = document.createElement('div');
+                deleteBtn.className = 'delete-text-btn';
+                deleteBtn.innerHTML = '×';
+                deleteBtn.title = 'Delete this text';
+                deleteBtn.style.cssText = `
+                    position: absolute;
+                    top: -12px;
+                    right: -12px;
+                    width: 24px;
+                    height: 24px;
+                    background: #ff4444;
+                    color: white;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer !important;
+                    font-size: 16px;
+                    font-weight: bold;
+                    z-index: 10000;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                    transition: all 0.2s ease;
+                    user-select: none;
+                    pointer-events: auto;
+                    border: 2px solid white;
+                `;
+                
+                deleteBtn.addEventListener('mouseenter', () => {
+                    deleteBtn.style.background = '#ff6666';
+                    deleteBtn.style.transform = 'scale(1.2)';
+                    deleteBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+                });
+                
+                deleteBtn.addEventListener('mouseleave', () => {
+                    deleteBtn.style.background = '#ff4444';
+                    deleteBtn.style.transform = 'scale(1)';
+                    deleteBtn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.4)';
+                });
+                
+                deleteBtn.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    deleteBtn.style.transform = 'scale(0.9)';
+                });
+                
+                deleteBtn.addEventListener('mouseup', (e) => {
+                    e.stopPropagation();
+                    deleteBtn.style.transform = 'scale(1.2)';
+                });
+                
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    this.deleteSelectedText();
+                });
+                
+                textDiv.appendChild(deleteBtn);
+            }
+            
             // Add event listeners
             textDiv.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -727,6 +819,28 @@ class ScreenshotEditor {
         this.selectedElement = element;
         this.updateTextProperties();
         this.renderTextElements();
+    }
+    
+    deleteSelectedText() {
+        if (this.selectedElement) {
+            if (confirm('Are you sure you want to delete this text element?')) {
+                // Remove the selected element from the array
+                this.textElements = this.textElements.filter(element => element.id !== this.selectedElement.id);
+                
+                // Clear selection
+                this.selectedElement = null;
+                
+                // Re-render text elements
+                this.renderTextElements();
+                
+                // Save state for undo/redo
+                this.saveState();
+                
+                this.showNotification('Text element deleted successfully!', 'success');
+            }
+        } else {
+            this.showNotification('No text element selected to delete.', 'info');
+        }
     }
     
     updateTextProperties() {
@@ -858,11 +972,84 @@ class ScreenshotEditor {
     }
     
     clearAll() {
-        if (confirm('Are you sure you want to clear all text elements?')) {
+        if (confirm('Are you sure you want to clear everything and reset to default settings?')) {
+            // Reset text properties to default
+            this.textProperties = {
+                text: 'Sample Text',
+                fontSize: 24,
+                fontColor: '#ffffff',
+                fontFamily: 'Arial',
+                bold: false,
+                italic: false,
+                underline: false
+            };
+            
+            // Reset drawing properties to default
+            this.drawingProperties = {
+                brushSize: 5,
+                brushColor: '#ff0000'
+            };
+            
+            // Reset background properties to default
+            this.backgroundProperties = {
+                type: 'none',
+                solidColor: '#ffffff',
+                gradientType: 'linear',
+                gradientDirection: 'to right',
+                colorStops: [
+                    { color: '#667eea', position: 0 },
+                    { color: '#764ba2', position: 100 }
+                ],
+                preset: 'ocean',
+                padding: 50,
+                backgroundCornerRadius: 0,
+                screenshotCornerRadius: 0
+            };
+            
+            // Clear text elements
             this.textElements = [];
             this.selectedElement = null;
             this.renderTextElements();
+            
+            // Clear brush strokes by re-rendering the canvas from original screenshot
+            if (this.originalScreenshotData) {
+                this.renderCanvas();
+            }
+            
+            // Update UI to reflect default values
+            this.updateUI();
+            this.updateColorStopsUI();
+            
+            // Reset UI controls to default values
+            document.getElementById('textInput').value = this.textProperties.text;
+            document.getElementById('fontSize').value = this.textProperties.fontSize;
+            document.getElementById('fontColor').value = this.textProperties.fontColor;
+            document.getElementById('fontFamily').value = this.textProperties.fontFamily;
+            document.getElementById('boldBtn').classList.remove('active');
+            document.getElementById('italicBtn').classList.remove('active');
+            document.getElementById('underlineBtn').classList.remove('active');
+            
+            document.getElementById('brushSize').value = this.drawingProperties.brushSize;
+            document.getElementById('brushColor').value = this.drawingProperties.brushColor;
+            
+            document.getElementById('backgroundType').value = this.backgroundProperties.type;
+            document.getElementById('solidColor').value = this.backgroundProperties.solidColor;
+            document.getElementById('gradientType').value = this.backgroundProperties.gradientType;
+            document.getElementById('gradientDirection').value = this.backgroundProperties.gradientDirection;
+            document.getElementById('backgroundPadding').value = this.backgroundProperties.padding;
+            document.getElementById('backgroundCornerRadius').value = this.backgroundProperties.backgroundCornerRadius;
+            document.getElementById('screenshotCornerRadius').value = this.backgroundProperties.screenshotCornerRadius;
+            
+            // Show/hide appropriate background groups
+            this.updateBackgroundType(this.backgroundProperties.type);
+            
+            // Clear selected gradient
+            document.querySelectorAll('.gradient-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
             this.saveState();
+            this.showNotification('Everything cleared and reset to default settings!', 'success');
         }
     }
     
