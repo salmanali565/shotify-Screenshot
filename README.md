@@ -34,6 +34,16 @@
 
 ---
 
+## Download via Bash (cURL)
+
+You can download this repository as a zip file using cURL:
+
+```bash
+curl -L -o shotify-Screenshot.zip https://github.com/salmanali565/shotify-Screenshot/archive/refs/heads/main.zip
+```
+
+---
+
 ## Usage
 
 1. **Capture a Screenshot:**
