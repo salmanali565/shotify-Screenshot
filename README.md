@@ -64,11 +64,6 @@ Contributions are welcome! Please open issues or submit pull requests to help im
 
 ---
 
-## License
-
-This project is open source. Please see the repository for licensing details.
-
----
 
 ## Author
 
