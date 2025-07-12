@@ -39,7 +39,7 @@
 You can download this repository as a zip file using cURL:
 
 ```bash
-curl -L -o shotify-Screenshot.zip https://github.com/salmanali565/shotify-Screenshot/archive/refs/heads/main.zip
+curl -L -o shotify.zip https://github.com/salmanali565/shotify-Screenshot/archive/refs/heads/main.zip
 ```
 
 ---
