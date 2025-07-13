@@ -779,7 +779,7 @@ class ScreenshotEditor {
                     deleteBtn.style.transform = 'scale(1.2)';
                     deleteBtn.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
                 });
-                
+                 
                 deleteBtn.addEventListener('mouseleave', () => {
                     deleteBtn.style.background = '#ff4444';
                     deleteBtn.style.transform = 'scale(1)';
